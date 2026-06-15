@@ -1,0 +1,70 @@
+""" main.py"""
+"""
+import sys
+from PyQt6.QtWidgets import QApplication
+from modules.auth import AuthWindow
+
+if __name__ == '__main__':
+    #Инициализация запуска приложения.
+    app = QApplication(sys.argv)
+    window = AuthWindow()
+    window.show()
+    sys.exit(app.exec())
+"""
+
+"""modules/database.py"""
+"""
+import pymysql
+
+class Database:
+    # Инициализация объекта базы данных.
+    # При создании экземпляра автоматически вызывается метод connect()
+    # для установления соединения с СУБД.
+    def __init__(self):
+        self.connection = None
+        self.connect()
+
+    def connect(self):
+        # Устанавливает соединение с базой данных MySQL.
+        try:
+            self.connection = pymysql.connect(
+                host='localhost',
+                user='root',
+                password='root',
+                database='ShoeStore',
+                cursorclass=pymysql.cursors.DictCursor
+            )
+        # Проверка обработки ошибок на подключение к БД.
+        except pymysql.MySQLError as e:
+            print("Ошибка при подключении к БД: ", str(e))
+
+    def execute(self, query, params=None):
+        # Выполняет SQL - запрос, изменяющий данные(INSERT, UPDATE, DELETE).
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute(query, params)
+                self.connection.commit()
+                return cursor.lastrowid
+        except pymysql.MySQLError as e:
+            raise e
+
+    def fetch_all(self, query, params=None):
+        # Выполняет SELECT - запрос и возвращает все найденные строки.
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute(query, params)
+                return cursor.fetchall()
+        except pymysql.MySQLError as e:
+            raise e
+
+    def fetch_one(self, query, params=None):
+        # Выполняет SELECT - запрос и возвращает первую найденную строку.
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute(query, params)
+                return cursor.fetchone()
+        except pymysql.MySQLError as e:
+            raise e
+
+db = Database()
+"""
