@@ -1,0 +1,90 @@
+import sys
+import traceback
+import pymysql
+from modules.admin import AdminWindow
+from modules.client import ClientWindow
+from modules.database import db
+from PyQt6.QtWidgets import QMainWindow, QMessageBox
+from PyQt6 import uic
+from modules.manager import ManagerWindow
+
+class AuthWindow(QMainWindow):
+    def __init__(self):
+        # Инициализация окна авторизации.
+        # Загружает интерфейс из .ui файла и привязывает обработчики событий к кнопкам.
+        super().__init__()
+
+        # Загрузка графического интерфейса
+        uic.loadUi("ui/auth.ui", self)
+
+        # Привязка сигналов нажатия кнопок к соответствующим методам
+        self.pushButton_enter.clicked.connect(self.check_user) # Вход по логину/паролю
+        self.pushButton_enter_guest.clicked.connect(self.login_guest) # Вход готевой
+
+    def check_user(self):
+        # Проверяет учетные данные пользователя, сверяя их с базой данных.
+        # При успешной авторизации определяет роль пользователя (Клиент, Менеджер или Администратор),
+        # создает соответствующее главное окно приложения и закрывает окно авторизации.
+        username = self.lineEdit_login.text()
+        password_hash = self.lineEdit_password.text()
+
+        # Проверка пустых полей.
+        if not username or not password_hash:
+            QMessageBox.warning(self, "Ошибка", "Заполните все поля")
+            return
+
+        try:
+            # Поиск пользователя в БД с получением данных о его роли
+            user = db.fetch_one("""
+                                SELECT u.*, r.role_name, r.role_id
+                                FROM users u
+                                         JOIN roles r ON r.role_id = u.role_id
+                                WHERE username = %s
+                                  AND password_hash = %s
+                                """, (username, password_hash))
+        except pymysql.MySQLError as e:
+            QMessageBox.critical(self, "Ошибка БД: ", str(e))
+            return
+
+        # Если пользователь не найден (возвращен None)
+        if not user:
+            QMessageBox.warning(self, "Ошибка", "Неверный логин или пароль")
+            return
+
+        # Извлечение необходимых данных из результата запроса
+        role_id = user['role_id']
+        user_id = user['user_id']
+        role_name = user['role_name']
+        # Формирование полного ФИО
+        user_fio = f"{user['surname']} {user['name']} {user['patronymic']}"
+
+        # Открываю окно в зависимости от роли пользователя
+        if role_id == 1:
+            self.window = ClientWindow(role_name, user_fio, user_id)
+        elif role_id == 2:
+            self.window = ManagerWindow(role_name, user_fio)
+        elif role_id == 3:
+            self.window = AdminWindow(role_name, user_fio)
+
+        # Отображение главного окна и закрытие окна авторизации.
+        self.window.show()
+        self.close()
+
+        # Уведомление об успешном входе
+        QMessageBox.information(self, "Успех", f"Добро пожаловать {role_name}!")
+
+    def login_guest(self):
+        # Выполняет вход в систему в режиме "Гость".
+        # Открывает окно клиента без передачи персональных данных (ФИО, ID).
+        # Гость обычно имеет ограниченные права (только просмотр).
+        # Создаем окно клиента. Передаем None вместо имени и ID, так как гость не идентифицирован.
+        self.window = ClientWindow(None)
+        self.window.show()
+        self.close()
+
+        QMessageBox.information(self, "Успех", "Добро пожаловать гость!")
+
+    def a(b, c, d):
+        traceback.print_exception(b, c, d)
+
+    sys.excepthook = a
